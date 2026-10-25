@@ -17,7 +17,9 @@
 [hidden]{display:none!important}
 html,body{margin:0;height:100%;background:#000;color:var(--bege);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
 /* câmera ocupa a tela toda */
-#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#111}
+#cam{position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none}
+#tela{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1);background:#111}
+#formatoInd{position:fixed;right:10px;top:calc(var(--alt,34vh) + 8px);font-size:12px;background:rgba(26,26,27,.85);border-radius:999px;padding:4px 10px;color:var(--bege)}
 /* faixa do texto colada no topo, perto da lente */
 #prompter{position:fixed;left:0;right:0;top:0;height:var(--alt,34vh);background:rgba(10,10,11,var(--fundo,.72));overflow:hidden;padding-top:env(safe-area-inset-top)}
 #rolo{position:absolute;left:0;right:0;top:0;will-change:transform}
@@ -61,6 +63,8 @@ textarea{flex:1;width:100%;border-radius:12px;border:1px solid #333;background:#
 </head>
 <body>
 <video id="cam" playsinline muted autoplay></video>
+<canvas id="tela"></canvas>
+<div id="formatoInd"></div>
 
 <div id="prompter"><div id="rolo"><div id="texto"></div></div><div id="guia">▶</div></div>
 <div id="barra"><span id="rec">● REC</span><b id="tempo">00:00</b><span id="vel-ind"></span></div>
@@ -104,6 +108,8 @@ textarea{flex:1;width:100%;border-radius:12px;border:1px solid #333;background:#
     <div class="pill" style="justify-content:space-between"><span>Largura do texto</span><span><button data-a="larg" data-d="-6">−</button><b id="larg">84%</b><button data-a="larg" data-d="6">+</button></span></div>
     <div class="pill" style="justify-content:space-between"><span>Escurecer atrás do texto</span><span><button data-a="fundo" data-d="-10">−</button><b id="fundo">72%</b><button data-a="fundo" data-d="10">+</button></span></div>
     <div class="pill" style="justify-content:space-between"><span>Contagem antes de gravar</span><span><button data-a="cont" data-d="-1">−</button><b id="cont">3 s</b><button data-a="cont" data-d="1">+</button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Formato do vídeo</span><span><button id="bForm"></button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Girar a imagem (se vier torta)</span><span><button id="bGirar"></button></span></div>
     <div class="pill" style="justify-content:space-between"><span>Qualidade</span><span><button id="bQual"></button></span></div>
   </div>
   <p style="margin-top:14px">Dica: no tripé, deixe o celular na altura dos olhos. Na mão, segure com o braço esticado. Gravar em ambiente silencioso ajuda mais que qualquer microfone.</p>
@@ -120,7 +126,7 @@ textarea{flex:1;width:100%;border-radius:12px;border:1px solid #333;background:#
 
 <script>
 const $ = s => document.querySelector(s);
-const cfg = Object.assign({vel:3, fs:30, alt:34, larg:84, fundo:72, cont:3, qual:"1080p"}, JSON.parse(localStorage.getItem("prompter-cfg")||"{}"));
+const cfg = Object.assign({vel:3, fs:30, alt:34, larg:84, fundo:72, cont:3, qual:"1080p", formato:"9:16", girar:0}, JSON.parse(localStorage.getItem("prompter-cfg")||"{}"));
 let roteiros = JSON.parse(localStorage.getItem("prompter-roteiros")||"[]");
 let atual = Number(localStorage.getItem("prompter-atual")||0);
 if (!roteiros.length) roteiros = [{t:"Exemplo", txt:"Exemplo de roteiro\n\nToque em “Texto” e cole o seu roteiro aqui.\n\nO texto rola sozinho enquanto você grava. Toque nele para pausar e arraste para voltar um trecho.\n\nSeja o que você almeja."}];
@@ -131,13 +137,41 @@ function aplicar(){
   r.setProperty("--fs", cfg.fs+"px"); r.setProperty("--alt", cfg.alt+"vh"); r.setProperty("--larg", cfg.larg+"%"); r.setProperty("--fundo", cfg.fundo/100);
   $("#vel").textContent = cfg.vel; $("#fs").textContent = cfg.fs; $("#alt").textContent = cfg.alt+"%"; $("#larg").textContent = cfg.larg+"%";
   $("#fundo").textContent = cfg.fundo+"%"; $("#cont").textContent = cfg.cont+" s"; $("#bQual").textContent = cfg.qual==="1080p" ? "1080p (melhor)" : "720p (arquivo menor)";
+  $("#bForm").textContent = {"9:16":"Vertical 9:16","16:9":"Horizontal 16:9","1:1":"Quadrado 1:1"}[cfg.formato];
+  $("#bGirar").textContent = cfg.girar ? cfg.girar+"°" : "Não girar";
+  $("#formatoInd").textContent = {"9:16":"▯ 9:16","16:9":"▭ 16:9","1:1":"□ 1:1"}[cfg.formato];
+  dimensionar();
   salvar();
 }
 const LIM = {vel:[1,12], fs:[18,56], alt:[20,60], larg:[50,100], fundo:[0,100], cont:[0,10]};
 document.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
   const k = b.dataset.a; cfg[k] = Math.min(LIM[k][1], Math.max(LIM[k][0], cfg[k] + Number(b.dataset.d))); aplicar();
 });
-$("#bQual").onclick = async () => { cfg.qual = cfg.qual==="1080p" ? "720p" : "1080p"; aplicar(); if (stream) await ligar(); };
+$("#bQual").onclick = () => { cfg.qual = cfg.qual==="1080p" ? "720p" : "1080p"; aplicar(); };
+$("#bForm").onclick = () => { const o = ["9:16","16:9","1:1"]; cfg.formato = o[(o.indexOf(cfg.formato)+1)%3]; aplicar(); };
+$("#bGirar").onclick = () => { cfg.girar = (cfg.girar + 90) % 360; aplicar(); };
+
+/* ---------- quadro de saída: o vídeo é montado no formato escolhido ---------- */
+const tela = document.getElementById("tela"), ctx = tela.getContext("2d");
+function dimensionar(){
+  const longo = cfg.qual === "1080p" ? 1920 : 1280, curto = cfg.qual === "1080p" ? 1080 : 720;
+  const [w, h] = cfg.formato === "9:16" ? [curto, longo] : cfg.formato === "16:9" ? [longo, curto] : [curto, curto];
+  if (tela.width !== w || tela.height !== h){ tela.width = w; tela.height = h; }
+}
+function quadro(){
+  const v = document.getElementById("cam");
+  if (v.videoWidth){
+    const rot = cfg.girar, deitado = rot === 90 || rot === 270;
+    const sw = deitado ? v.videoHeight : v.videoWidth, sh = deitado ? v.videoWidth : v.videoHeight;
+    const esc = Math.max(tela.width / sw, tela.height / sh);   // preenche o quadro (corta as sobras)
+    ctx.save(); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, tela.width, tela.height);
+    ctx.translate(tela.width / 2, tela.height / 2); ctx.rotate(rot * Math.PI / 180);
+    ctx.drawImage(v, -v.videoWidth * esc / 2, -v.videoHeight * esc / 2, v.videoWidth * esc, v.videoHeight * esc);
+    ctx.restore();
+  }
+  requestAnimationFrame(quadro);
+}
+requestAnimationFrame(quadro);
 
 function mostrarTexto(){ $("#texto").textContent = (roteiros[atual]||roteiros[0]).txt; pos = 0; desenhar(); }
 
@@ -162,10 +196,10 @@ async function ligar(){
   if (stream) stream.getTracks().forEach(t => t.stop());
   const alta = cfg.qual === "1080p";
   stream = await navigator.mediaDevices.getUserMedia({
-    video: {facingMode:"user", width:{ideal: alta?1080:720}, height:{ideal: alta?1920:1280}, aspectRatio:{ideal:9/16}, frameRate:{ideal:30}},
+    video: {facingMode:"user", width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30}},
     audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true}
   });
-  $("#cam").srcObject = stream;
+  $("#cam").srcObject = stream; try { await $("#cam").play(); } catch(e){}
 }
 $("#bLigar").onclick = async () => {
   try { await ligar(); $("#inicio").hidden = true; manterTelaAcesa(); }
@@ -193,7 +227,9 @@ $("#gravar").onclick = async () => {
   pos = 0; desenhar();
   await contagem(cfg.cont);
   partes = [];
-  rec = new MediaRecorder(stream, tipo ? {mimeType: tipo, videoBitsPerSecond: cfg.qual==="1080p" ? 10_000_000 : 5_000_000} : undefined);
+  dimensionar();
+  const saida = tela.captureStream(30); stream.getAudioTracks().forEach(t => saida.addTrack(t));
+  rec = new MediaRecorder(saida, tipo ? {mimeType: tipo, videoBitsPerSecond: cfg.qual==="1080p" ? 10_000_000 : 5_000_000} : undefined);
   rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
   rec.onstop = terminar;
   rec.start(1000);
