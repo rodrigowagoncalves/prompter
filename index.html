@@ -210,7 +210,7 @@ async function manterTelaAcesa(){ try { trava = await navigator.wakeLock?.reques
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && stream) manterTelaAcesa(); });
 
 /* ---------- gravação ---------- */
-let rec = null, partes = [], gravando = false, t0 = 0, relogio = null, ultimoArquivo = null;
+let rec = null, partes = [], gravando = false, ocupado = false, finalizado = false, t0 = 0, relogio = null, ultimoArquivo = null;
 const tipo = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
 const ext = tipo.includes("mp4") ? "mp4" : "webm";
 const fmt = s => String(Math.floor(s/60)).padStart(2,"0") + ":" + String(Math.floor(s%60)).padStart(2,"0");
@@ -222,7 +222,9 @@ async function contagem(n){
 }
 $("#gravar").onclick = async () => {
   if (!stream){ $("#inicio").hidden = false; return; }
-  if (gravando){ rec.stop(); return; }
+  if (gravando){ parar(); return; }
+  if (ocupado) return;              // já está na contagem: ignora toques repetidos
+  ocupado = true;
   if (!window.MediaRecorder){ $("#aviso").textContent = "Este navegador não grava vídeo. Atualize o iOS."; return; }
   pos = 0; desenhar();
   await contagem(cfg.cont);
@@ -232,12 +234,24 @@ $("#gravar").onclick = async () => {
   rec = new MediaRecorder(saida, tipo ? {mimeType: tipo, videoBitsPerSecond: cfg.qual==="1080p" ? 10_000_000 : 5_000_000} : undefined);
   rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
   rec.onstop = terminar;
+  finalizado = false; ocupado = false;
   rec.start(1000);
   gravando = true; rolando = true; t0 = Date.now();
   $("#gravar").classList.add("on"); $("#rec").classList.add("on"); $("#ctrl").style.opacity = .55;
   relogio = setInterval(() => { $("#tempo").textContent = fmt((Date.now()-t0)/1000); }, 250);
 };
+// Parar: o iPhone às vezes não avisa que a gravação terminou quando ela vem do quadro montado.
+// Então: para a rolagem na hora, pede os últimos dados, manda parar e, se em 2,5 s nada acontecer, finaliza mesmo assim.
+function parar(){
+  if (!gravando || !rec) return;
+  rolando = false; $("#rec").textContent = "Finalizando…";
+  try { rec.requestData(); } catch(e){}
+  try { rec.stop(); } catch(e){ terminar(); return; }
+  setTimeout(() => { if (!finalizado) terminar(); }, 2500);
+}
 function terminar(){
+  if (finalizado) return; finalizado = true;
+  $("#rec").textContent = "● REC";
   gravando = false; rolando = false; clearInterval(relogio);
   $("#gravar").classList.remove("on"); $("#rec").classList.remove("on"); $("#ctrl").style.opacity = 1;
   const blob = new Blob(partes, {type: tipo || "video/mp4"});
