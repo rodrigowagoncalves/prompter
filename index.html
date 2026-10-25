@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prompter">
+<meta name="theme-color" content="#1A1A1B">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icone-180.png">
+<title>Prompter</title>
+<style>
+:root{--bege:#F9F4E8;--tinta:#1A1A1B;--terra:#E7543B;--cinza:#8d877c;--ok:#2f9e63}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:#000;color:var(--bege);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+/* câmera ocupa a tela toda */
+#cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#111}
+/* faixa do texto colada no topo, perto da lente */
+#prompter{position:fixed;left:0;right:0;top:0;height:var(--alt,34vh);background:rgba(10,10,11,var(--fundo,.72));overflow:hidden;padding-top:env(safe-area-inset-top)}
+#rolo{position:absolute;left:0;right:0;top:0;will-change:transform}
+#texto{margin:0 auto;width:var(--larg,84%);font-size:var(--fs,30px);line-height:1.35;font-weight:600;white-space:pre-wrap;padding-top:calc(env(safe-area-inset-top) + 18px);padding-bottom:60vh;text-align:center}
+#prompter::after{content:"";position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(transparent,rgba(10,10,11,.92));pointer-events:none}
+#guia{position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 26px);color:var(--terra);font-size:16px;pointer-events:none}
+/* topo: tempo e rec */
+#barra{position:fixed;left:0;right:0;top:var(--alt,34vh);display:flex;justify-content:center;gap:14px;padding:8px;font-size:14px;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #000;pointer-events:none}
+#rec{color:var(--terra);font-weight:800;display:none}
+#rec.on{display:inline;animation:pisca 1s steps(2) infinite}
+@keyframes pisca{50%{opacity:.3}}
+/* controles embaixo */
+#ctrl{position:fixed;left:0;right:0;bottom:0;padding:10px 12px calc(env(safe-area-inset-bottom) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.75) 35%)}
+.lin{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:4px;background:rgba(26,26,27,.85);border-radius:999px;padding:4px;font-size:13px;color:var(--cinza)}
+.pill span{padding:0 6px}
+.pill b{color:var(--bege);min-width:2.4em;text-align:center;font-variant-numeric:tabular-nums}
+button{font:inherit;border:0;border-radius:999px;background:rgba(26,26,27,.9);color:var(--bege);padding:10px 14px;font-size:15px}
+.pill button{padding:7px 12px;font-size:16px;background:#2b2b2d}
+#gravar{width:76px;height:76px;border-radius:50%;background:transparent;border:5px solid var(--bege);padding:0;display:flex;align-items:center;justify-content:center}
+#gravar i{display:block;width:56px;height:56px;border-radius:50%;background:var(--terra);transition:all .2s}
+#gravar.on i{width:30px;height:30px;border-radius:7px}
+#aviso{position:fixed;left:16px;right:16px;top:calc(var(--alt,34vh) + 40px);text-align:center;font-size:14px;color:#ffc2b5;text-shadow:0 1px 3px #000}
+/* telas sobrepostas */
+.tela{position:fixed;inset:0;z-index:20;background:var(--tinta);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 14px)}
+.tela h2{margin:4px 0 10px;font-size:20px}
+.tela p{color:var(--cinza);font-size:14px;margin:0 0 10px;line-height:1.4}
+textarea{flex:1;width:100%;border-radius:12px;border:1px solid #333;background:#0f0f10;color:var(--bege);font:17px/1.45 -apple-system,sans-serif;padding:12px;resize:none}
+.acoes{display:flex;gap:8px;margin-top:10px}
+.acoes button{flex:1;padding:13px}
+.prim{background:var(--terra)!important;color:#fff!important;font-weight:700}
+.ok{background:var(--ok)!important;color:#fff!important;font-weight:700}
+#lista{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:28vh;overflow:auto}
+#lista button{text-align:left;border-radius:10px;padding:10px 12px;background:#242426;display:flex;justify-content:space-between;gap:8px}
+#lista button em{color:var(--cinza);font-style:normal;font-size:12px}
+#take{flex:1;min-height:0;width:100%;border-radius:12px;background:#000;object-fit:contain}
+#contagem{position:fixed;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;font-size:150px;font-weight:800;color:#fff;background:rgba(0,0,0,.35);pointer-events:none}
+#inicio{z-index:30;justify-content:center;text-align:center;gap:6px}
+#inicio .logo{font-size:44px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<video id="cam" playsinline muted autoplay></video>
+
+<div id="prompter"><div id="rolo"><div id="texto"></div></div><div id="guia">▶</div></div>
+<div id="barra"><span id="rec">● REC</span><b id="tempo">00:00</b><span id="vel-ind"></span></div>
+<div id="aviso"></div>
+
+<div id="ctrl">
+  <div class="lin">
+    <div class="pill"><span>Velocidade</span><button data-a="vel" data-d="-1">−</button><b id="vel">3</b><button data-a="vel" data-d="1">+</button></div>
+    <div class="pill"><span>Letra</span><button data-a="fs" data-d="-2">−</button><b id="fs">30</b><button data-a="fs" data-d="2">+</button></div>
+  </div>
+  <div class="lin" style="margin-top:12px;gap:22px">
+    <button id="bTexto">Texto</button>
+    <button id="gravar" aria-label="Gravar"><i></i></button>
+    <button id="bMais">Ajustes</button>
+  </div>
+</div>
+
+<div id="contagem" hidden></div>
+
+<!-- Tela inicial: precisa de um toque para liberar câmera e microfone no iPhone -->
+<div id="inicio" class="tela">
+  <div class="logo">✦</div>
+  <h2>Prompter</h2>
+  <p>O texto rola no topo da tela, perto da câmera frontal.<br>Grave olhando para a lente e lendo logo abaixo dela.</p>
+  <div class="acoes" style="flex:none;max-width:420px;margin:12px auto 0;width:100%"><button class="prim" id="bLigar">Ligar câmera e microfone</button></div>
+  <p id="avisoInicio" style="color:#ffc2b5;margin-top:12px"></p>
+</div>
+
+<div id="telaTexto" class="tela" hidden>
+  <h2>Roteiro</h2>
+  <div id="lista"></div>
+  <p>Cole o roteiro abaixo. A primeira linha vira o nome. Toque no texto durante a gravação para pausar e arraste para voltar.</p>
+  <textarea id="edit" placeholder="Cole aqui o roteiro…"></textarea>
+  <div class="acoes"><button id="bNovo">Novo</button><button id="bApagar">Apagar</button><button class="prim" id="bUsar">Usar este texto</button></div>
+</div>
+
+<div id="telaAjustes" class="tela" hidden>
+  <h2>Ajustes</h2>
+  <div class="lin" style="justify-content:flex-start;flex-direction:column;align-items:stretch;gap:10px">
+    <div class="pill" style="justify-content:space-between"><span>Altura da faixa do texto</span><span><button data-a="alt" data-d="-4">−</button><b id="alt">34%</b><button data-a="alt" data-d="4">+</button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Largura do texto</span><span><button data-a="larg" data-d="-6">−</button><b id="larg">84%</b><button data-a="larg" data-d="6">+</button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Escurecer atrás do texto</span><span><button data-a="fundo" data-d="-10">−</button><b id="fundo">72%</b><button data-a="fundo" data-d="10">+</button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Contagem antes de gravar</span><span><button data-a="cont" data-d="-1">−</button><b id="cont">3 s</b><button data-a="cont" data-d="1">+</button></span></div>
+    <div class="pill" style="justify-content:space-between"><span>Qualidade</span><span><button id="bQual"></button></span></div>
+  </div>
+  <p style="margin-top:14px">Dica: no tripé, deixe o celular na altura dos olhos. Na mão, segure com o braço esticado. Gravar em ambiente silencioso ajuda mais que qualquer microfone.</p>
+  <div class="acoes" style="margin-top:auto"><button class="prim" id="bFecharAj">Pronto</button></div>
+</div>
+
+<div id="telaTake" class="tela" hidden>
+  <h2>Gravação pronta</h2>
+  <p id="infoTake"></p>
+  <video id="take" playsinline controls></video>
+  <div class="acoes"><button id="bRegravar">Gravar de novo</button><button class="ok" id="bSalvar">Salvar / Enviar</button></div>
+  <p style="margin-top:8px">“Salvar / Enviar” abre o menu do iPhone: escolha <b>Salvar Vídeo</b> (vai para o app Fotos) ou mande direto pelo WhatsApp, AirDrop ou Drive.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const cfg = Object.assign({vel:3, fs:30, alt:34, larg:84, fundo:72, cont:3, qual:"1080p"}, JSON.parse(localStorage.getItem("prompter-cfg")||"{}"));
+let roteiros = JSON.parse(localStorage.getItem("prompter-roteiros")||"[]");
+let atual = Number(localStorage.getItem("prompter-atual")||0);
+if (!roteiros.length) roteiros = [{t:"Exemplo", txt:"Exemplo de roteiro\n\nToque em “Texto” e cole o seu roteiro aqui.\n\nO texto rola sozinho enquanto você grava. Toque nele para pausar e arraste para voltar um trecho.\n\nSeja o que você almeja."}];
+const salvar = () => { localStorage.setItem("prompter-cfg", JSON.stringify(cfg)); localStorage.setItem("prompter-roteiros", JSON.stringify(roteiros)); localStorage.setItem("prompter-atual", String(atual)); };
+
+function aplicar(){
+  const r = document.documentElement.style;
+  r.setProperty("--fs", cfg.fs+"px"); r.setProperty("--alt", cfg.alt+"vh"); r.setProperty("--larg", cfg.larg+"%"); r.setProperty("--fundo", cfg.fundo/100);
+  $("#vel").textContent = cfg.vel; $("#fs").textContent = cfg.fs; $("#alt").textContent = cfg.alt+"%"; $("#larg").textContent = cfg.larg+"%";
+  $("#fundo").textContent = cfg.fundo+"%"; $("#cont").textContent = cfg.cont+" s"; $("#bQual").textContent = cfg.qual==="1080p" ? "1080p (melhor)" : "720p (arquivo menor)";
+  salvar();
+}
+const LIM = {vel:[1,12], fs:[18,56], alt:[20,60], larg:[50,100], fundo:[0,100], cont:[0,10]};
+document.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
+  const k = b.dataset.a; cfg[k] = Math.min(LIM[k][1], Math.max(LIM[k][0], cfg[k] + Number(b.dataset.d))); aplicar();
+});
+$("#bQual").onclick = async () => { cfg.qual = cfg.qual==="1080p" ? "720p" : "1080p"; aplicar(); if (stream) await ligar(); };
+
+function mostrarTexto(){ $("#texto").textContent = (roteiros[atual]||roteiros[0]).txt; pos = 0; desenhar(); }
+
+/* ---------- rolagem ---------- */
+let pos = 0, rolando = false, ultimo = 0;
+const desenhar = () => { $("#rolo").style.transform = `translateY(${-pos}px)`; };
+function passo(t){
+  if (rolando){ const dt = ultimo ? (t-ultimo)/1000 : 0; pos += cfg.vel * 14 * dt; desenhar(); }
+  ultimo = t; requestAnimationFrame(passo);
+}
+requestAnimationFrame(passo);
+// tocar pausa; arrastar move o texto
+let toqueY = null, moveu = false;
+$("#prompter").addEventListener("touchstart", e => { toqueY = e.touches[0].clientY; moveu = false; }, {passive:true});
+$("#prompter").addEventListener("touchmove", e => { const y = e.touches[0].clientY; pos = Math.max(0, pos - (y - toqueY)); toqueY = y; moveu = true; desenhar(); e.preventDefault(); }, {passive:false});
+$("#prompter").addEventListener("touchend", () => { if (!moveu && gravando) rolando = !rolando; });
+$("#prompter").addEventListener("click", () => { if (!("ontouchstart" in window) && gravando) rolando = !rolando; });
+
+/* ---------- câmera ---------- */
+let stream = null;
+async function ligar(){
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  const alta = cfg.qual === "1080p";
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: {facingMode:"user", width:{ideal: alta?1080:720}, height:{ideal: alta?1920:1280}, aspectRatio:{ideal:9/16}, frameRate:{ideal:30}},
+    audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true}
+  });
+  $("#cam").srcObject = stream;
+}
+$("#bLigar").onclick = async () => {
+  try { await ligar(); $("#inicio").hidden = true; manterTelaAcesa(); }
+  catch(e){ $("#avisoInicio").textContent = "Não consegui abrir a câmera. No iPhone: Ajustes › Safari › Câmera e Microfone › Permitir. Depois toque de novo. (" + e.name + ")"; }
+};
+let trava = null;
+async function manterTelaAcesa(){ try { trava = await navigator.wakeLock?.request("screen"); } catch(e){} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && stream) manterTelaAcesa(); });
+
+/* ---------- gravação ---------- */
+let rec = null, partes = [], gravando = false, t0 = 0, relogio = null, ultimoArquivo = null;
+const tipo = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+const ext = tipo.includes("mp4") ? "mp4" : "webm";
+const fmt = s => String(Math.floor(s/60)).padStart(2,"0") + ":" + String(Math.floor(s%60)).padStart(2,"0");
+
+async function contagem(n){
+  const c = $("#contagem");
+  for (let i = n; i > 0; i--){ c.hidden = false; c.textContent = i; await new Promise(r => setTimeout(r, 1000)); }
+  c.hidden = true;
+}
+$("#gravar").onclick = async () => {
+  if (!stream){ $("#inicio").hidden = false; return; }
+  if (gravando){ rec.stop(); return; }
+  if (!window.MediaRecorder){ $("#aviso").textContent = "Este navegador não grava vídeo. Atualize o iOS."; return; }
+  pos = 0; desenhar();
+  await contagem(cfg.cont);
+  partes = [];
+  rec = new MediaRecorder(stream, tipo ? {mimeType: tipo, videoBitsPerSecond: cfg.qual==="1080p" ? 10_000_000 : 5_000_000} : undefined);
+  rec.ondataavailable = e => { if (e.data && e.data.size) partes.push(e.data); };
+  rec.onstop = terminar;
+  rec.start(1000);
+  gravando = true; rolando = true; t0 = Date.now();
+  $("#gravar").classList.add("on"); $("#rec").classList.add("on"); $("#ctrl").style.opacity = .55;
+  relogio = setInterval(() => { $("#tempo").textContent = fmt((Date.now()-t0)/1000); }, 250);
+};
+function terminar(){
+  gravando = false; rolando = false; clearInterval(relogio);
+  $("#gravar").classList.remove("on"); $("#rec").classList.remove("on"); $("#ctrl").style.opacity = 1;
+  const blob = new Blob(partes, {type: tipo || "video/mp4"});
+  const nome = ((roteiros[atual]||{}).t || "take").replace(/[^\p{L}\p{N} -]/gu,"").trim().slice(0,40) || "take";
+  const q = new Date(), dd = n => String(n).padStart(2,"0");
+  const carimbo = `${q.getFullYear()}-${dd(q.getMonth()+1)}-${dd(q.getDate())} ${dd(q.getHours())}h${dd(q.getMinutes())}`;
+  ultimoArquivo = new File([blob], `${nome} — ${carimbo}.${ext}`, {type: blob.type});
+  $("#take").src = URL.createObjectURL(blob);
+  $("#infoTake").textContent = `${fmt((Date.now()-t0)/1000)} · ${(blob.size/1048576).toFixed(1).replace(".",",")} MB · ${ultimoArquivo.name}`;
+  $("#telaTake").hidden = false;
+}
+$("#bSalvar").onclick = async () => {
+  if (!ultimoArquivo) return;
+  if (navigator.canShare && navigator.canShare({files:[ultimoArquivo]})){
+    try { await navigator.share({files:[ultimoArquivo], title: ultimoArquivo.name}); return; } catch(e){ if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(ultimoArquivo); a.download = ultimoArquivo.name; a.click();
+};
+$("#bRegravar").onclick = () => { $("#telaTake").hidden = true; $("#take").pause(); $("#tempo").textContent = "00:00"; pos = 0; desenhar(); };
+
+/* ---------- roteiros ---------- */
+function abrirTexto(){
+  $("#lista").innerHTML = "";
+  roteiros.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span></span><em>${Math.round(r.txt.split(/\s+/).length/2.4/60*10)/10} min</em>`;
+    b.querySelector("span").textContent = (i===atual ? "● " : "") + r.t;
+    b.onclick = () => { atual = i; $("#edit").value = r.txt; abrirTexto(); };
+    $("#lista").appendChild(b);
+  });
+  $("#edit").value = (roteiros[atual]||{}).txt || "";
+  $("#telaTexto").hidden = false;
+}
+$("#bTexto").onclick = abrirTexto;
+$("#bNovo").onclick = () => { roteiros.push({t:"Novo roteiro", txt:""}); atual = roteiros.length-1; abrirTexto(); $("#edit").focus(); };
+$("#bApagar").onclick = () => { if (roteiros.length > 1 && confirm("Apagar este roteiro do celular?")){ roteiros.splice(atual,1); atual = 0; abrirTexto(); salvar(); } };
+$("#bUsar").onclick = () => {
+  const txt = $("#edit").value.trim(); if (!txt) return;
+  roteiros[atual] = {t: txt.split("\n")[0].replace(/^#+\s*/,"").slice(0,60), txt};
+  salvar(); mostrarTexto(); $("#telaTexto").hidden = true;
+};
+$("#bMais").onclick = () => $("#telaAjustes").hidden = false;
+$("#bFecharAj").onclick = () => $("#telaAjustes").hidden = true;
+
+// roteiro vindo por link (…/#r=<texto codificado>)
+if (location.hash.startsWith("#r=")){
+  try { const txt = decodeURIComponent(location.hash.slice(3)); roteiros.push({t: txt.split("\n")[0].slice(0,60), txt}); atual = roteiros.length-1; history.replaceState(null,"",location.pathname); } catch(e){}
+}
+aplicar(); mostrarTexto();
+if (!navigator.mediaDevices){ $("#avisoInicio").textContent = "A câmera só funciona em endereço https:// (no Safari)."; }
+</script>
+</body>
+</html>

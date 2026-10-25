@@ -1,0 +1,52 @@
+<svg viewBox="0 0 600 620" xmlns="http://www.w3.org/2000/svg">
+  <!-- Símbolo Bússola-Estrela — Rodrigo Gonçalves | gravura preta sobre off-white -->
+  <rect x="0" y="0" width="600" height="620" fill="#F9F4E8"/>
+
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- Aro / rim -->
+    <circle cx="300" cy="330" r="185" fill="none" stroke="#1A1A1B" stroke-width="3"/>
+    <circle cx="300" cy="330" r="176" fill="none" stroke="#1A1A1B" stroke-width="1.2"/>
+    <!-- Anel de marcações (ticks) -->
+    <circle cx="300" cy="330" r="169" fill="none" stroke="#1A1A1B" stroke-width="4.5" stroke-dasharray="1.3 8.2"/>
+
+    <!-- ROSA DOS VENTOS — facetas escuras (lado direito de cada ponta) -->
+    <g fill="#1A1A1B" stroke="#1A1A1B" stroke-width="1">
+      <polygon points="300,75 300,330 316,291"/>   <!-- N (agulha/espira longa) -->
+      <polygon points="371,259 300,330 339,314"/>  <!-- NE -->
+      <polygon points="460,330 300,330 339,346"/>  <!-- E -->
+      <polygon points="371,401 300,330 316,369"/>  <!-- SE -->
+      <polygon points="300,490 300,330 284,369"/>  <!-- S -->
+      <polygon points="229,401 300,330 261,346"/>  <!-- SW -->
+      <polygon points="140,330 300,330 261,314"/>  <!-- W -->
+      <polygon points="229,259 300,330 284,291"/>  <!-- NW -->
+    </g>
+
+    <!-- ROSA DOS VENTOS — facetas claras (lado esquerdo de cada ponta) -->
+    <g fill="#F9F4E8" stroke="#1A1A1B" stroke-width="1.6">
+      <polygon points="300,75 300,330 284,291"/>   <!-- N -->
+      <polygon points="371,259 300,330 316,291"/>  <!-- NE -->
+      <polygon points="460,330 300,330 339,314"/>  <!-- E -->
+      <polygon points="371,401 300,330 339,346"/>  <!-- SE -->
+      <polygon points="300,490 300,330 316,369"/>  <!-- S -->
+      <polygon points="229,401 300,330 284,369"/>  <!-- SW -->
+      <polygon points="140,330 300,330 261,346"/>  <!-- W -->
+      <polygon points="229,259 300,330 261,314"/>  <!-- NW -->
+    </g>
+
+    <!-- Cubo central -->
+    <circle cx="300" cy="330" r="8" fill="#1A1A1B"/>
+    <circle cx="300" cy="330" r="2.6" fill="#F9F4E8"/>
+
+    <!-- Raios da estrela -->
+    <g stroke="#1A1A1B" stroke-width="2.4">
+      <line x1="321" y1="24" x2="329" y2="16"/>
+      <line x1="321" y1="66" x2="329" y2="74"/>
+      <line x1="279" y1="66" x2="271" y2="74"/>
+      <line x1="279" y1="24" x2="271" y2="16"/>
+    </g>
+
+    <!-- ESTRELA-GUIA (para onde a agulha aponta) -->
+    <polygon points="300,19 306,36 325,37 310,48 315,66 300,56 285,66 290,48 275,37 294,36"
+             fill="#1A1A1B" stroke="#1A1A1B" stroke-width="1"/>
+  </g>
+</svg>
