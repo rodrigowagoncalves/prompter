@@ -129,7 +129,7 @@ const $ = s => document.querySelector(s);
 const cfg = Object.assign({vel:3, fs:30, alt:34, larg:84, fundo:72, cont:3, qual:"1080p", formato:"9:16", girar:0}, JSON.parse(localStorage.getItem("prompter-cfg")||"{}"));
 let roteiros = JSON.parse(localStorage.getItem("prompter-roteiros")||"[]");
 let atual = Number(localStorage.getItem("prompter-atual")||0);
-if (!roteiros.length) roteiros = [{t:"Exemplo", txt:"Exemplo de roteiro\n\nToque em “Texto” e cole o seu roteiro aqui.\n\nO texto rola sozinho enquanto você grava. Toque nele para pausar e arraste para voltar um trecho.\n\nSeja o que você almeja."}];
+if (!roteiros.length) roteiros = [{t:"Exemplo", txt:"Exemplo de roteiro\n\nToque em “Texto” e cole o seu roteiro aqui.\n\nO texto rola sozinho enquanto você grava. Toque nele para pausar e arraste para voltar um trecho.\n\nBoa gravação!"}];
 const salvar = () => { localStorage.setItem("prompter-cfg", JSON.stringify(cfg)); localStorage.setItem("prompter-roteiros", JSON.stringify(roteiros)); localStorage.setItem("prompter-atual", String(atual)); };
 
 function aplicar(){
