@@ -120,8 +120,9 @@ textarea{flex:1;width:100%;border-radius:12px;border:1px solid #333;background:#
   <h2>Gravação pronta</h2>
   <p id="infoTake"></p>
   <video id="take" playsinline controls></video>
-  <div class="acoes"><button id="bRegravar">Gravar de novo</button><button class="ok" id="bSalvar">Salvar / Enviar</button></div>
-  <p style="margin-top:8px">“Salvar / Enviar” abre o menu do iPhone: escolha <b>Salvar Vídeo</b> (vai para o app Fotos) ou mande direto pelo WhatsApp, AirDrop ou Drive.</p>
+  <div class="acoes"><button id="bRegravar">Gravar de novo</button><button id="bSalvar">Salvar na galeria</button></div>
+  <div class="acoes" style="margin-top:8px"><button class="ok" id="bEditor" style="flex:1">Enviar para o editor</button></div>
+  <p style="margin-top:8px" id="dicaEditor">“Salvar na galeria”: no menu do iPhone, escolha <b>Salvar Vídeo</b>. “Enviar para o editor”: manda o vídeo e copia o briefing de edição (formato, onde entra cada print, links das matérias e legenda) — no WhatsApp, cole o briefing junto.</p>
 </div>
 
 <script>
@@ -270,6 +271,17 @@ $("#bSalvar").onclick = async () => {
   }
   const a = document.createElement("a"); a.href = URL.createObjectURL(ultimoArquivo); a.download = ultimoArquivo.name; a.click();
 };
+function briefingAtual(){ return (roteiros[atual]||{}).b || ""; }
+$("#bEditor").onclick = async () => {
+  if (!ultimoArquivo) return;
+  const b = briefingAtual();
+  if (b) { try { await navigator.clipboard.writeText(b); } catch(e){} }
+  if (navigator.canShare && navigator.canShare({files:[ultimoArquivo]})){
+    try { await navigator.share(b ? {files:[ultimoArquivo], title: ultimoArquivo.name, text: b} : {files:[ultimoArquivo], title: ultimoArquivo.name}); return; }
+    catch(e){ if (e.name === "AbortError") return; try { await navigator.share({files:[ultimoArquivo], title: ultimoArquivo.name}); return; } catch(e2){ if (e2.name === "AbortError") return; } }
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(ultimoArquivo); a.download = ultimoArquivo.name; a.click();
+};
 $("#bRegravar").onclick = () => { $("#telaTake").hidden = true; $("#take").pause(); $("#tempo").textContent = "00:00"; pos = 0; desenhar(); };
 
 /* ---------- roteiros ---------- */
@@ -290,7 +302,7 @@ $("#bNovo").onclick = () => { roteiros.push({t:"Novo roteiro", txt:""}); atual =
 $("#bApagar").onclick = () => { if (roteiros.length > 1 && confirm("Apagar este roteiro do celular?")){ roteiros.splice(atual,1); atual = 0; abrirTexto(); salvar(); } };
 $("#bUsar").onclick = () => {
   const txt = $("#edit").value.trim(); if (!txt) return;
-  roteiros[atual] = {t: txt.split("\n")[0].replace(/^#+\s*/,"").slice(0,60), txt};
+  roteiros[atual] = {t: txt.split("\n")[0].replace(/^#+\s*/,"").slice(0,60), txt, b: (roteiros[atual]||{}).b || ""};
   salvar(); mostrarTexto(); $("#telaTexto").hidden = true;
 };
 $("#bColar").onclick = async () => {
@@ -302,7 +314,8 @@ $("#bFecharAj").onclick = () => $("#telaAjustes").hidden = true;
 
 // roteiro vindo por link (…/#r=<texto codificado>)
 if (location.hash.startsWith("#r=")){
-  try { const txt = decodeURIComponent(location.hash.slice(3)); roteiros.push({t: txt.split("\n")[0].slice(0,60), txt}); atual = roteiros.length-1; history.replaceState(null,"",location.pathname); } catch(e){}
+  try { const [rt, bt] = location.hash.slice(3).split("&b="); const txt = decodeURIComponent(rt), b = bt ? decodeURIComponent(bt) : "";
+    roteiros.push({t: txt.split("\n")[0].slice(0,60), txt, b}); atual = roteiros.length-1; salvar(); history.replaceState(null,"",location.pathname); } catch(e){}
 }
 aplicar(); mostrarTexto();
 if (!navigator.mediaDevices){ $("#avisoInicio").textContent = "A câmera só funciona em endereço https:// (no Safari)."; }
